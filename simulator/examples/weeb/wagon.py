@@ -18,7 +18,7 @@ class WeebWagon(Robot):
     def _feedback_callback(self, msg) -> None:
         feedback = MotorFeedback(msg)
         print("Feedback: {}, {}, {}".format(feedback.delta_x, feedback.delta_y, feedback.delta_theta))
-        self._set_motors(math.sin(time.time()), 0.5)
+        self._set_motors(0.0, 0.5)
 
     def _set_motors(self, angular_velocity: float, forward_velocity: float) -> None:
         self.publish("/autonav/MotorInput", MotorInput(angular_velocity, forward_velocity).__dict__)

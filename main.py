@@ -1,5 +1,5 @@
 from simulator.examples import WeebWagon
-from .robot import YourRobot
+from robot import YourRobot
 
 
 def main():
@@ -7,6 +7,7 @@ def main():
     # weeb_wagon.spin()
 
     robot = YourRobot()
+    robot.spin()
 
 
 if __name__ == '__main__':
