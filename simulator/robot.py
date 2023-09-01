@@ -16,17 +16,17 @@ class Robot():
 
     def spin(self, multi_thread: bool = False) -> None:
         if multi_thread:
-            self.listenThread = threading.Thread(target=self.intl_listen)
+            self.listenThread = threading.Thread(target=self._intl_listen)
             self.listenThread.daemon = True
             self.listenThread.start()
             return
 
         try:
-            self.intl_listen()
+            self._intl_listen()
         except KeyboardInterrupt:
             pass
 
-    def intl_connect(self):
+    def _intl_connect(self):
         while True:
             if self.connected:
                 break
@@ -39,15 +39,15 @@ class Robot():
                 time.sleep(1)
                 continue
 
-    def intl_listen(self):
-        self.intl_connect()
+    def _intl_listen(self):
+        self._intl_connect()
         while True:
             data = None
             try:
                 data = self.socket.recv(self.bufferSize)
             except ConnectionResetError:
                 self.connected = False
-                self.intl_connect()
+                self._intl_connect()
                 continue
 
             if not data:
@@ -80,5 +80,13 @@ class Robot():
         try:
             self.socket.sendall(json.dumps(packet).encode())
         except Exception:
-            self.connected = False
-            self.intl_connect()
+            self._intl_connect()
+
+    def create_timer(self, period: float, callback: callable) -> threading.Timer:
+        timer = threading.Timer(period, callback)
+        timer.start()
+        return timer
+    
+    def destroy_timer(self, timer: threading.Timer) -> None:
+        timer.cancel()
+        return
