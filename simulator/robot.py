@@ -5,71 +5,80 @@ import math
 import time
 
 
+class RepeatTimer(threading.Timer):
+    def __init__(self, interval, function, args=[], kwargs={}):
+        super().__init__(interval, function, args, kwargs)
+        self.__function = function
+        self.__args = args
+        self.__kwargs = kwargs
+
+    def run(self):
+        while not self.finished.wait(self.interval):
+            self.__function(*self.__args, **self.__kwargs)
+
+
 class Robot():
     def __init__(self) -> None:
-        self.subscriptions = {}
+        self.__subscriptions = {}
+        self.__listenThread = None
+        self.__bufferSize = (int)(math.pow(2, 16))
 
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.listenThread = None
-        self.bufferSize = (int)(math.pow(2, 16))
-        self.connected = False
+    def spin(self) -> None:
+        self.__listenThread = threading.Thread(target=self.__intl_listen)
+        self.__listenThread.daemon = True
+        self.__listenThread.start()
 
-    def spin(self, multi_thread: bool = False) -> None:
-        if multi_thread:
-            self.listenThread = threading.Thread(target=self.__intl_listen)
-            self.listenThread.daemon = True
-            self.listenThread.start()
-            return
-
-        try:
-            self.__intl_listen()
-        except KeyboardInterrupt:
-            pass
-
-    def __intl_connect(self):
+    def __intl_listen(self):
         while True:
-            if self.connected:
-                break
-
             try:
-                self.socket.connect(("127.0.0.1", 9092))
-                self.connected = True
-            except ConnectionRefusedError:
-                self.connected = False
+                print("Connecting to simulator...")
+                self.__socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                self.__socket.connect(("localhost", 9092))
+            except Exception:
+                print("Failed to connect to simulator. Retrying...")
                 time.sleep(1)
                 continue
 
-    def __intl_listen(self):
-        self.__intl_connect()
-        while True:
-            data = None
-            try:
-                data = self.socket.recv(self.bufferSize)
-            except ConnectionResetError:
-                self.connected = False
-                self.__intl_connect()
-                continue
+            print("Connected to simulator")
+            while True:
+                data = None
+                try:
+                    data = self.__socket.recv(self.__bufferSize)
+                except ConnectionResetError:
+                    print("Connection lost [RST]")
+                    break
 
-            if not data:
-                break
-            packet = json.loads(data.decode())
-            op = packet["op"]
-            if op != "publish":
-                continue
+                if not data:
+                    print("Connection lost [EOF]")
+                    break
 
-            if packet["topic"] in self.subscriptions:
-                for callback in self.subscriptions[packet["topic"]]:
-                    callback(packet["msg"])
+                raw_msg = data.decode()
+                packet = None
+                try:
+                    packet = json.loads(raw_msg)
+                except Exception:
+                    print("Invalid JSON received: " + raw_msg)
+                    continue
+
+                opcode = packet["op"]
+                if opcode == "publish":
+                    topic = packet["topic"]
+                    if topic in self.__subscriptions:
+                        for callback in self.__subscriptions[packet["topic"]]:
+                            if "msg" in packet:
+                                callback(packet["msg"])
+                            if "data" in packet:
+                                callback(packet["data"])
 
     def is_subscribed(self, topic: str) -> bool:
-        return topic in self.subscriptions
+        return topic in self.__subscriptions
 
     def subscribe(self, topic: str, callback: callable) -> None:
-        if topic not in self.subscriptions:
-            self.subscriptions[topic] = []
+        if topic not in self.__subscriptions:
+            self.__subscriptions[topic] = []
 
         print(f"Subscribing to {topic}")
-        self.subscriptions[topic].append(callback)
+        self.__subscriptions[topic].append(callback)
 
     def publish(self, topic: str, data: any) -> None:
         packet = {
@@ -78,15 +87,17 @@ class Robot():
             "msg": data
         }
         try:
-            self.socket.sendall(json.dumps(packet).encode())
+            self.__socket.sendall(json.dumps(packet).encode())
         except Exception:
-            self.__intl_connect()
+            # print("Failed to publish message")
+            pass
 
     def create_timer(self, period: float, callback: callable) -> threading.Timer:
-        timer = threading.Timer(period, callback)
+        timer = RepeatTimer(period, callback)
+        timer.daemon = True
         timer.start()
         return timer
-    
+
     def destroy_timer(self, timer: threading.Timer) -> None:
         timer.cancel()
         return
