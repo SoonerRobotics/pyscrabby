@@ -13,10 +13,10 @@ class SampleRobot(OnboardRobot):
         self.x = 0.0
         self.y = 0.0
         self.theta = 0.0
-        self.goals = [(5, 6), (10, 15), (-3, 20), (-18, 18), (-13, 8)]
+        self.goals = [(5.0, 6.0), (10.0, 15.0), (-3.0, 20.0), (-18, 18), (-13, 8)]
         self.goalIndex = 0
 
-        self.create_timer(1.0, self.__on_timer_elapsed)
+        self.create_timer(0.5, self.__on_timer_elapsed)
 
         self.subscribe("/onboarding/position", self.__on_position_update)
         self.subscribe("/onboarding/MotorFeedback", self.__on_motor_feedback)
@@ -27,21 +27,26 @@ class SampleRobot(OnboardRobot):
             return delta
 
     def __on_timer_elapsed(self):
+        print("\033c")
+        print("Current Goal: " + str(self.goals[self.goalIndex]))
         print("Position: " + str(self.x) + ", " + str(self.y) + ", " + str(self.theta))
         goal = self.goals[self.goalIndex]
         angle_diff = math.atan2(goal[1] - self.y, goal[0] - self.x)
-        error = self.getAngleDifference(angle_diff, self.theta)
+        print("Angle Difference: " + str(angle_diff))
+        error = self.getAngleDifference(angle_diff, self.theta) / math.pi
+        print("Error: " + str(error))
         forward_speed = 1.0 * (1 - abs(error)) ** 5
         distance = math.sqrt((goal[0] - self.x) ** 2 + (goal[1] - self.y) ** 2)
-        if distance > 0.25:
-            self.setVelocity(forward_speed, error * -2)
+        print("Distance: " + str(distance))
+        if distance > 1:
+            self.setVelocity(forward_speed, error)
         else:
             self.goalIndex = self.goalIndex + 1
             if self.goalIndex == len(self.goals):
                 self.goalIndex = 0
 
     def __on_position_update(self, data):
-        print("Position Update: " + str(data["x"]) + ", " + str(data["y"]))
+        # print("Position Update: " + str(data["x"]) + ", " + str(data["y"]))
         self.x = data["x"]
         self.y = data["y"]
         pass
