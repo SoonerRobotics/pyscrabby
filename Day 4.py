@@ -92,8 +92,7 @@ def get_path(start, goal):
             if neighbor in closed_set:
                 continue
 
-            tentative_g_score = g_score[current] + \
-                get_distance(current, neighbor)
+            tentative_g_score = g_score[current] + get_distance(current, neighbor) + MAP[neighbor[0]][neighbor[1]]
 
             if neighbor not in open_set:
                 open_set.append(neighbor)
@@ -108,6 +107,9 @@ def get_path(start, goal):
     return None
 
 
+path = get_path((0, 0), GOAL)
+
+
 class SampleRobot(OnboardRobot):
     def __init__(self) -> None:
         super().__init__()
@@ -115,28 +117,25 @@ class SampleRobot(OnboardRobot):
         self.x = 0.0
         self.y = 0.0
         self.theta = 0.0
+        self.pathIndex = len(path) - 1
 
         self.subscribe("/onboarding/position", self.__on_position_update)
         self.subscribe("/onboarding/MotorFeedback", self.__on_motor_feedback)
-        self.create_timer(0.1, self.__on_timer_called)
-
-    def getAngleDifference(self, to_angle, from_angle):
-        delta = to_angle - from_angle
-        delta = (delta + math.pi) % (2 * math.pi) - math.pi
-        return delta
+        self.astarTimer = self.create_timer(0.1, self.__on_timer_called)
 
     def __on_position_update(self, data):
         self.x = data["x"]
         self.y = data["y"]
         pass
 
+    def getAngleDifference(self, to_angle, from_angle):
+        delta = to_angle - from_angle
+        delta = (delta + math.pi) % (2 * math.pi) - math.pi
+        return delta
+
     def __on_timer_called(self):
         # Get the current goal
-        currentPath = get_path((math.floor(self.x), math.floor(self.y)), GOAL)
-        if currentPath is None:
-            return
-        print(currentPath)
-        goal = currentPath[len(currentPath) - 1]
+        goal = path[self.pathIndex]
 
         # Calculate the angle difference between the current goal and the robot's current position
         angle_diff = math.atan2(goal[0] - self.x, goal[1] - self.y)
@@ -147,9 +146,24 @@ class SampleRobot(OnboardRobot):
         # Calculate the forward speed based on the error
         forward_speed = 1.0 * (1 - abs(error)) ** 5
 
+        if abs(error) > 0.1:
+            forward_speed = 0.0
+
         # Calculate the distance between the robot and the current goal point
         distance = math.sqrt((goal[0] - self.x) ** 2 + (goal[1] - self.y) ** 2)
-        self.setVelocity(forward_speed, error * 1.65)
+        self.setVelocity(forward_speed, error * 2)
+
+        # If the robot is within 0.1 meters of the goal, move on to the next goal
+        if distance < 0.4:
+            self.pathIndex -= 1
+            print("Goal reached! Moving on to the next goal.")
+            print("Remaining goals: " + str(self.pathIndex))
+            print("Current position: " + str(self.x) + ", " + str(self.y))
+
+            # If the robot has reached the end of the path, stop the robot
+            if self.pathIndex < 0:
+                self.setVelocity(0, 5.0)
+                self.destroy_timer(self.astarTimer)
 
     def __on_motor_feedback(self, data):
         self.theta = self.theta + data["delta_theta"]
