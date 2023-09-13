@@ -57,7 +57,6 @@ class Robot():
                 try:
                     packet = json.loads(raw_msg)
                 except Exception:
-                    print("Invalid JSON received: " + raw_msg)
                     continue
 
                 opcode = packet["op"]
