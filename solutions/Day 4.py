@@ -73,45 +73,36 @@ def get_path(start, goal):
     g_score = {}
     f_score = {}
 
-    # Set the g_score of the start point to 0, and the f_score to the distance between the start and goal
     g_score[start] = 0
     f_score[start] = get_distance(start, goal)
 
-    # While there are still points in the open set
     while len(open_set) > 0:
-        # Find the point in the open set with the lowest f_score
         current = open_set[0]
         for point in open_set:
             if f_score[point] < f_score[current]:
                 current = point
 
-        # If the current point is the goal, return the path
         if current == goal:
             return reconstruct_path(came_from, current)
 
-        # Remove the current point from the open set and add it to the closed set
         open_set.remove(current)
         closed_set.append(current)
 
-        # Loop through each neighbor of the current point
         for neighbor in get_neighbors(current):
-            # If the neighbor is in the closed set, skip it
             if neighbor in closed_set:
                 continue
 
-            # Calculate the tentative g_score of the neighbor using the existing score, the distance, and the map weight
             tentative_g_score = g_score[current] + get_distance(current, neighbor) + MAP[neighbor[0]][neighbor[1]]
 
-            # If the neighbor is not in the open set add it to the open set, otherwise if the tentative g_score is greater than the existing g_score, skip it
             if neighbor not in open_set:
                 open_set.append(neighbor)
             elif tentative_g_score >= g_score[neighbor]:
                 continue
 
-            # Set the came_from, g_score, and f_score of the neighbor
             came_from[neighbor] = current
             g_score[neighbor] = tentative_g_score
-            f_score[neighbor] = g_score[neighbor] + get_distance(neighbor, goal)
+            f_score[neighbor] = g_score[neighbor] + \
+                get_distance(neighbor, goal)
 
     return None
 

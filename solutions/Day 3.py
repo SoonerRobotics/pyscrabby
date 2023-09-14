@@ -26,6 +26,7 @@ class SampleRobot(OnboardRobot):
             return delta
 
     def __on_position_update(self, data):
+        # print("Position Update: " + str(data["x"]) + ", " + str(data["y"]))
         self.x = data["x"]
         self.y = data["y"]
         pass
@@ -35,17 +36,23 @@ class SampleRobot(OnboardRobot):
         goal = self.goals[self.goalIndex]
 
         # Calculate the angle difference between the current goal and the robot's current position
-        angle_diff = math.atan2() # TODO: FIX ME
+        angle_diff = math.atan2(goal[0] - self.x, goal[1] - self.y)
 
         # Calculate the error between the current angle and the goal angle
-        error = self.getAngleDifference() / math.pi # TODO: FIX ME
+        error = self.getAngleDifference(angle_diff * -1, self.theta) / math.pi
 
         # Calculate the forward speed based on the error
-        forward_speed = 0.0 # TODO: FIX ME
+        forward_speed = 1.0 * (1 - abs(error)) ** 5
 
         # Calculate the distance between the robot and the current goal point
         distance = math.sqrt((goal[0] - self.x) ** 2 + (goal[1] - self.y) ** 2)
 
+        print("\033c")
+        print("Current Goal: " + str(self.goals[self.goalIndex]))
+        print("Position: " + str(self.x) + ", " + str(self.y) + ", " + str(self.theta) + " | " + str(math.degrees(self.theta)))
+        print("Angle Difference: " + str(angle_diff) + " | " + str(math.degrees(angle_diff)))
+        print("Error: " + str(error))
+        print("Distance: " + str(distance))
         if distance > 1.5:
             # Set the velocity of the robot
             self.setVelocity(forward_speed, error * 1.65)
